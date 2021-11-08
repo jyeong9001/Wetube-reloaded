@@ -9,6 +9,7 @@ const PORT = 4000;
 const app = express();
 const logger = morgan("dev");
 app.use(logger);
+app.use(express.urlencoded({extended:true}))
 
 const home = (req, res) => {
     console.log("I will respond");
