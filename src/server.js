@@ -2,33 +2,30 @@
 import express from "express" ;
 import morgan from "morgan" ;
 import session from "express-session";
+import MongoStore from "connect-mongo";
 import rootRouter from './routers/rootRouter';
 import videoRouter from './routers/videoRouter';
 import userRouter from './routers/userRouter';
+import {localsMiddleware} from './middlewares';
 
 const app = express();
 const logger = morgan("dev");
-
-const home = (req, res) => {
-    console.log("I will respond");
-    return res.send("hello");
-};
-
-const handleHome = (req, res) => {
-    return res.send("login");
-};
 
 app.set("view engine", "pug");
 app.set("views",process.cwd() + "/src/views");
 app.use(logger);
 app.use(express.urlencoded({extended:true}));
 
-app.use(session({
-    secret: "Hello!",
-    resave:true,
-    saveUninitialized: true,
-}))
+app.use(
+    session({
+        secret: "Hello!",
+        resave: true,
+        saveUninitialized: true,
+        store: MongoStore.create({mongoUrl:"mongodb://127.0.0.1:27017/wetube" }),
+    })
+);
 
+app.use(localsMiddleware);
 app.use("/",rootRouter);
 app.use("/videos",videoRouter);
 app.use("/user",userRouter);
