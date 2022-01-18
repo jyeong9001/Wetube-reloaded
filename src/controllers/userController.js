@@ -108,7 +108,6 @@ export const finishGithubLogin = async (req, res) => {
         },
       })
     ).json();
-    console.log(userRequest);
   } else {
     return res.redirect("/login");
   }
@@ -127,19 +126,37 @@ export const postEdit = async (req, res) => {
   } = req;
   console.log(file);
   // console.log(req.session.user.avatarUrl);
-  let searchParam = [];
+  let searchParamEmail = [];
+  let searchParamUsername = [];
   if (sessionEmail !== email) {
-    searchParam.push({ email });
+    searchParamEmail.push({ email });
   }
   if (sessionUsername !== username) {
-    searchParam.push({ username });
+    searchParamUsername.push({ username });
   }
-  if (searchParam.length > 0) {
-    const foundUser = await User.findOne({ $or: searchParam });
+
+  if (searchParamUsername.length > 0 && searchParamEmail.length > 0) {
+    const foundUser = await User.findOne({ $or: searchParamUsername });
     if (foundUser && foundUser._id.toString() !== _id) {
       return res.status(HTTP_BAD_REQUEST).render("edit-profile", {
         pageTitle: "Edit Profile",
-        errorMessage: "This username/email is already taken.",
+        errorMessage: "This Username/Email is already taken.",
+      });
+    }
+  } else if (searchParamUsername.length > 0) {
+    const foundUser = await User.findOne({ $or: searchParamUsername });
+    if (foundUser && foundUser._id.toString() !== _id) {
+      return res.status(HTTP_BAD_REQUEST).render("edit-profile", {
+        pageTitle: "Edit Profile",
+        errorMessage: "This Username is already taken.",
+      });
+    }
+  } else if (searchParamEmail.length > 0) {
+    const foundUser = await User.findOne({ $or: searchParamEmail });
+    if (foundUser && foundUser._id.toString() !== _id) {
+      return res.status(HTTP_BAD_REQUEST).render("edit-profile", {
+        pageTitle: "Edit Profile",
+        errorMessage: "This Email is already taken.",
       });
     }
   }
@@ -193,10 +210,16 @@ export const postChangePassword = async (req, res) => {
 };
 
 export const remove = (req, res) => res.send("Delete User");
-export const logout = (req, res) => res.send("Logout");
+export const logout = async (req, res) => {
+  const { username } = req.body;
+  const user = await User.findOne({ username });
+  req.session.loggedIn = false;
+  req.session.user = user;
+  return res.redirect("/");
+};
 export const see = async (req, res) => {
   const { id } = req.params;
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate("videos");
   if (!user) {
     return res.status(404).render("404", { pageTitle: "User not found." });
   }
