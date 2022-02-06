@@ -1,33 +1,22 @@
 import User from "../models/User";
-import Video from "../models/Video";
 import fetch from "node-fetch";
 import bcrypt from "bcrypt";
-import session from "express-session";
-
-const HTTP_BAD_REQUEST = 400;
 
 export const getJoin = (req, res) => res.render("join", { pageTitle: "Join" });
 export const postJoin = async (req, res) => {
   const { name, username, email, password, password2, location } = req.body;
   const pageTitle = "Join";
   if (password !== password2) {
-    return res.status(HTTP_BAD_REQUEST).render("join", {
+    return res.status(400).render("join", {
       pageTitle,
-      errorMessage: "Password confirmation doesn't match.",
+      errorMessage: "Password confirmation does not match.",
     });
   }
-  const usernameExists = await User.exists({ username });
-  if (usernameExists) {
-    return res.status(HTTP_BAD_REQUEST).render("join", {
+  const exists = await User.exists({ $or: [{ username }, { email }] });
+  if (exists) {
+    return res.status(400).render("join", {
       pageTitle,
-      errorMessage: "This username is already taken.",
-    });
-  }
-  const emailExists = await User.exists({ email });
-  if (emailExists) {
-    return res.status(HTTP_BAD_REQUEST).render("join", {
-      pageTitle,
-      errorMessage: "This email is already taken.",
+      errorMessage: "This username/email is already taken.",
     });
   }
   try {
@@ -40,28 +29,29 @@ export const postJoin = async (req, res) => {
     });
     return res.redirect("/login");
   } catch (error) {
-    return res.status(HTTP_BAD_REQUEST).render("join", {
-      pageTitle,
-      errorMessage: error._messages,
+    return res.status(400).render("join", {
+      pageTitle: "Upload Video",
+      errorMessage: error._message,
     });
   }
 };
 export const getLogin = (req, res) =>
-  res.render("login", { pageTitle: "login" });
+  res.render("login", { pageTitle: "Login" });
 
 export const postLogin = async (req, res) => {
   const { username, password } = req.body;
-  const user = await User.findOne({ username });
+  const pageTitle = "Login";
+  const user = await User.findOne({ username, socialOnly: false });
   if (!user) {
-    return res.status(HTTP_BAD_REQUEST).render("login", {
-      pageTitle: "Login",
-      errorMessage: "An account with this username doesn't exists.",
+    return res.status(400).render("login", {
+      pageTitle,
+      errorMessage: "An account with this username does not exists.",
     });
   }
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) {
-    return res.status(HTTP_BAD_REQUEST).render("login", {
-      pageTitle: "Login",
+    return res.status(400).render("login", {
+      pageTitle,
       errorMessage: "Wrong password",
     });
   }
@@ -74,7 +64,7 @@ export const startGithubLogin = (req, res) => {
   const baseUrl = "https://github.com/login/oauth/authorize";
   const config = {
     client_id: process.env.GH_CLIENT,
-    allow_signup: true,
+    allow_signup: false,
     scope: "read:user user:email",
   };
   const params = new URLSearchParams(config).toString();
@@ -101,72 +91,69 @@ export const finishGithubLogin = async (req, res) => {
   ).json();
   if ("access_token" in tokenRequest) {
     const { access_token } = tokenRequest;
-    const userRequest = await (
-      await fetch("https://api.github.com/user", {
+    const apiUrl = "https://api.github.com";
+    const userData = await (
+      await fetch(`${apiUrl}/user`, {
         headers: {
           Authorization: `token ${access_token}`,
         },
       })
     ).json();
+    const emailData = await (
+      await fetch(`${apiUrl}/user/emails`, {
+        headers: {
+          Authorization: `token ${access_token}`,
+        },
+      })
+    ).json();
+    const emailObj = emailData.find(
+      (email) => email.primary === true && email.verified === true
+    );
+    if (!emailObj) {
+      // set notification
+      return res.redirect("/login");
+    }
+    let user = await User.findOne({ email: emailObj.email });
+    if (!user) {
+      user = await User.create({
+        avatarUrl: userData.avatar_url,
+        name: userData.name,
+        username: userData.login,
+        email: emailObj.email,
+        password: "",
+        socialOnly: true,
+        location: userData.location,
+      });
+    }
+    req.session.loggedIn = true;
+    req.session.user = user;
+    return res.redirect("/");
   } else {
     return res.redirect("/login");
   }
 };
 
+export const logout = (req, res) => {
+  req.session.destroy();
+  req.flash("info", "Bye Bye");
+  return res.redirect("/");
+};
 export const getEdit = (req, res) => {
   return res.render("edit-profile", { pageTitle: "Edit Profile" });
 };
 export const postEdit = async (req, res) => {
   const {
     session: {
-      user: { _id, avatarUrl, email: sessionEmail, username: sessionUsername },
+      user: { _id, avatarUrl },
     },
     body: { name, email, username, location },
     file,
   } = req;
-  console.log(file);
-  // console.log(req.session.user.avatarUrl);
-  let searchParamEmail = [];
-  let searchParamUsername = [];
-  if (sessionEmail !== email) {
-    searchParamEmail.push({ email });
-  }
-  if (sessionUsername !== username) {
-    searchParamUsername.push({ username });
-  }
-
-  if (searchParamUsername.length > 0 && searchParamEmail.length > 0) {
-    const foundUser = await User.findOne({ $or: searchParamUsername });
-    if (foundUser && foundUser._id.toString() !== _id) {
-      return res.status(HTTP_BAD_REQUEST).render("edit-profile", {
-        pageTitle: "Edit Profile",
-        errorMessage: "This Username/Email is already taken.",
-      });
-    }
-  } else if (searchParamUsername.length > 0) {
-    const foundUser = await User.findOne({ $or: searchParamUsername });
-    if (foundUser && foundUser._id.toString() !== _id) {
-      return res.status(HTTP_BAD_REQUEST).render("edit-profile", {
-        pageTitle: "Edit Profile",
-        errorMessage: "This Username is already taken.",
-      });
-    }
-  } else if (searchParamEmail.length > 0) {
-    const foundUser = await User.findOne({ $or: searchParamEmail });
-    if (foundUser && foundUser._id.toString() !== _id) {
-      return res.status(HTTP_BAD_REQUEST).render("edit-profile", {
-        pageTitle: "Edit Profile",
-        errorMessage: "This Email is already taken.",
-      });
-    }
-  }
-
-  // const isHeroku = process.env.NODE_ENV === "production";
+  const isHeroku = process.env.NODE_ENV === "production";
   const updatedUser = await User.findByIdAndUpdate(
     _id,
     {
-      // avatarUrl: file ? (isHeroku ? file.location : file.path) : avatarUrl,
-      avatarUrl: file ? file.path : avatarUrl,
+      avatarUrl: file ? (isHeroku ? file.location : file.path) : avatarUrl,
       name,
       email,
       username,
@@ -177,8 +164,10 @@ export const postEdit = async (req, res) => {
   req.session.user = updatedUser;
   return res.redirect("/users/edit");
 };
+
 export const getChangePassword = (req, res) => {
   if (req.session.user.socialOnly === true) {
+    req.flash("error", "Can't change password.");
     return res.redirect("/");
   }
   return res.render("users/change-password", { pageTitle: "Change Password" });
@@ -206,27 +195,24 @@ export const postChangePassword = async (req, res) => {
   }
   user.password = newPassword;
   await user.save();
-  return res.redirect("/users");
+  req.flash("info", "Password updated");
+  return res.redirect("/users/logout");
 };
 
-export const remove = (req, res) => res.send("Delete User");
-export const logout = async (req, res) => {
-  const { username } = req.body;
-  const user = await User.findOne({ username });
-  req.session.loggedIn = false;
-  req.session.user = user;
-  return res.redirect("/");
-};
 export const see = async (req, res) => {
   const { id } = req.params;
-  const user = await User.findById(id).populate("videos");
+  const user = await User.findById(id).populate({
+    path: "videos",
+    populate: {
+      path: "owner",
+      model: "User",
+    },
+  });
   if (!user) {
     return res.status(404).render("404", { pageTitle: "User not found." });
   }
-  const videos = await Video.find({ owner: user._id });
   return res.render("users/profile", {
     pageTitle: user.name,
     user,
-    videos,
   });
 };
