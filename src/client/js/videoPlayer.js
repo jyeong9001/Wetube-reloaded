@@ -107,6 +107,20 @@ const handleEnded = () => {
   });
 };
 
+const logKey = (e) => {
+  if (e.code == "Space") {
+    handlePlayAndStop();
+    console("Space");
+  } else if (e.code == "KeyF") {
+    handleFullscreen();
+    console("KeyF");
+  } else if (e.code == "Escape") {
+    document.exitFullscreen();
+    console("Escape");
+    fullScreenBtn.innerText = "Full Screen";
+  }
+};
+
 playBtn.addEventListener("click", handlePlayClick);
 muteBtn.addEventListener("click", handleMuteClick);
 volumeRange.addEventListener("input", handleVolumeChange);
@@ -117,3 +131,4 @@ videoContainer.addEventListener("mousemove", handleMouseMove);
 videoContainer.addEventListener("mouseleave", handleMouseLeave);
 timeline.addEventListener("input", handleTimelineChange);
 fullScreenBtn.addEventListener("click", handleFullscreen);
+document.addEventListener("keyup", logKey);
