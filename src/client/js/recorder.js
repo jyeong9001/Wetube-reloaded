@@ -92,7 +92,7 @@ const handleStart = () => {
 
 const init = async () => {
   stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
+    video: false,
     video: {
       width: 1024,
       height: 576,

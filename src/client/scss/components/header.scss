@@ -1,5 +1,8 @@
 header {
   padding: 20px 50px;
+  position: sticky;
+  top: 0;
+  background-color: rgba(14, 17, 23, 0.9);
   display: flex;
   justify-content: space-between;
   align-items: center;
