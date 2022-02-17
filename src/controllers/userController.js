@@ -117,7 +117,7 @@ export const finishGithubLogin = async (req, res) => {
     if (!user) {
       user = await User.create({
         avatarUrl: userData.avatar_url,
-        name: userData.name,
+        name: userData.name ? userData.name : "Unknown",
         username: userData.login,
         email: emailObj.email,
         password: "",
@@ -214,6 +214,6 @@ export const see = async (req, res) => {
   return res.render("users/profile", {
     pageTitle: user.name,
     user,
-    // videos,r
+    videos,
   });
 };

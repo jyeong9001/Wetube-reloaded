@@ -285,7 +285,7 @@ var finishGithubLogin = /*#__PURE__*/function () {
             _context3.next = 31;
             return _User["default"].create({
               avatarUrl: userData.avatar_url,
-              name: userData.name,
+              name: userData.name ? userData.name : "Unknown",
               username: userData.login,
               email: emailObj.email,
               password: "",
@@ -486,8 +486,8 @@ var see = /*#__PURE__*/function () {
           case 7:
             return _context6.abrupt("return", res.render("users/profile", {
               pageTitle: user.name,
-              user: user // videos,r
-
+              user: user,
+              videos: videos
             }));
 
           case 8:
