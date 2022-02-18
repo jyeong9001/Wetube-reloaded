@@ -486,8 +486,8 @@ var see = /*#__PURE__*/function () {
           case 7:
             return _context6.abrupt("return", res.render("users/profile", {
               pageTitle: user.name,
-              user: user,
-              videos: videos
+              user: user // videos,
+
             }));
 
           case 8:
