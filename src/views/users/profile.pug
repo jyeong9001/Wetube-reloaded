@@ -4,7 +4,6 @@ include ../mixins/video
 
 block content
     div.profile__data
-        img(src="/" + user.avatarUrl).avatar
         if user.avatarUrl.includes("github")
             img(src=user.avatarUrl).avatar
         else
